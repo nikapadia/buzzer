@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Buzzer</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+
+        button {
+            font-size: 24px;
+            padding: 20px;
+            width: 80%;
+            margin: 10px;
+            border-radius: 12px;
+        }
+
+        #buzzBtn {
+            background: red;
+            color: white;
+        }
+
+        #resetBtn {
+            background: #444;
+            color: white;
+        }
+
+        #hostArea,
+        #playerArea,
+        #modeSelect {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2 id="title">Gameshow Buzzer</h2>
+
+    <!-- Mode Selection -->
+    <div id="modeSelect">
+        <button onclick="beHost()">Host</button>
+        <button onclick="bePlayer()">Player</button>
+    </div>
+
+    <!-- Host UI -->
+    <div id="hostArea">
+        <h3>Lobby Code: <span id="lobbyCode"></span></h3>
+        <h4>Buzz Order:</h4>
+        <ul id="buzzList"></ul>
+        <button id="resetBtn" onclick="resetBuzz()">Reset</button>
+        <h3>Player Messages:</h3>
+        <div id="hostMessages" style="text-align:left; 
+            margin:10px auto; 
+            padding:10px; 
+            width:90%; 
+            max-width:500px; 
+            height:150px; 
+            overflow-y:auto; 
+            border:1px solid #ccc;">
+        </div>
+
+    </div>
+
+    <!-- Player UI (minimalistic) -->
+    <div id="playerArea">
+        <h2 id="pLobbyCode"></h2>
+        <h3 id="pName"></h3>
+        <button id="buzzBtn" onclick="buzz()">BUZZ</button>
+        <div id="playerMessageBox" style="margin-top:30px;">
+            <input id="playerMessageInput" type="text" placeholder="Type your answer…"
+                style="font-size:20px; padding:10px; width:80%; max-width:300px;">
+            <button onclick="sendPlayerMessage()" style="font-size:20px; padding:10px; margin-top:10px;">
+                Send
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        let ws = new WebSocket("ws://localhost:8080");
+        let mode = null;
+        let lobbyCode = null;
+        let playerName = null;
+
+        // Show mode buttons on load
+        document.getElementById("modeSelect").style.display = "block";
+
+        function beHost() {
+            mode = "host";
+            ws.send(JSON.stringify({ type: "create_lobby" }));
+            document.getElementById("modeSelect").style.display = "none";
+            document.getElementById("title").style.display = "none";
+        }
+
+        function bePlayer() {
+            mode = "player";
+            playerName = prompt("Enter your name:");
+            lobbyCode = prompt("Enter lobby code:").toUpperCase();
+
+            ws.send(JSON.stringify({
+                type: "join_lobby",
+                name: playerName,
+                code: lobbyCode
+            }));
+
+            document.getElementById("modeSelect").style.display = "none";
+            document.getElementById("title").style.display = "none";
+        }
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+
+            // Host setup
+            if (msg.type === "lobby_created") {
+                lobbyCode = msg.code;
+                document.getElementById("lobbyCode").innerText = msg.code;
+                document.getElementById("hostArea").style.display = "block";
+            }
+
+            // Player setup
+            if (msg.type === "joined_successfully") {
+                document.getElementById("pLobbyCode").innerText = "Lobby: " + lobbyCode;
+                document.getElementById("pName").innerText = playerName;
+                document.getElementById("playerArea").style.display = "block";
+            }
+
+            // Host buzzing list update
+            if (msg.type === "buzz_update") {
+                const list = document.getElementById("buzzList");
+                list.innerHTML = "";
+                msg.order.forEach(name => {
+                    const li = document.createElement("li");
+                    li.innerText = name;
+                    list.appendChild(li);
+                });
+            }
+
+            // New: show player messages to host
+            if (msg.type === "player_message") {
+                const box = document.getElementById("hostMessages");
+                const entry = document.createElement("div");
+                entry.style.marginBottom = "6px";
+                entry.innerHTML = "<strong>" + (msg.name || "Unknown") + ":</strong> " + (msg.text || "");
+                box.appendChild(entry);
+                box.scrollTop = box.scrollHeight;
+            }
+
+            // New: notify host when a player joins
+            if (msg.type === "player_joined") {
+                const box = document.getElementById("hostMessages");
+                const entry = document.createElement("div");
+                entry.style.marginBottom = "6px";
+                entry.style.color = "#555";
+                entry.innerText = (msg.name || "A player") + " joined the lobby.";
+                box.appendChild(entry);
+                box.scrollTop = box.scrollHeight;
+            }
+        };
+
+        function buzz() {
+            ws.send(JSON.stringify({
+                type: "buzz",
+                name: playerName,
+                code: lobbyCode
+            }));
+        }
+
+        function resetBuzz() {
+            ws.send(JSON.stringify({
+                type: "reset",
+                code: lobbyCode
+            }));
+        }
+
+        function sendPlayerMessage() {
+            const input = document.getElementById("playerMessageInput");
+            const text = input.value.trim();
+            if (!text) return;
+
+            ws.send(JSON.stringify({
+                type: "player_message",
+                name: playerName,
+                code: lobbyCode,
+                text: text
+            }));
+
+            input.value = "";
+        }
+
+    </script>
+
+</body>
+
+</html>
