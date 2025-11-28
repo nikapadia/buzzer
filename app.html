@@ -483,6 +483,20 @@
             box.scrollTop = box.scrollHeight;
         }
 
+        const buzzer = document.getElementById("buzzerSound");
+        function primeAudio() {
+            buzzer.volume = 0;
+            buzzer.play().catch(() => {});
+            buzzer.pause();
+            buzzer.currentTime = 0;
+            buzzer.volume = 1;
+
+            // Remove listener so it only runs once
+            window.removeEventListener("touchstart", primeAudio);
+        }
+
+        window.addEventListener("touchstart", primeAudio);
+
     </script>
 
 </body>
