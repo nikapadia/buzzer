@@ -337,7 +337,7 @@
         <h3 id="pName"></h3>
         <button id="buzzBtn" onclick="buzz()">BUZZ</button>
         <div id="playerMessageBox" style="margin-top:30px;">
-            <input id="playerMessageInput" type="text" placeholder="Type your answer…"
+            <input id="playerMessageInput" type="text" placeholder="Type your answer..."
                 style="font-size:20px; padding:10px; max-width:300px;">
             <button onclick="sendPlayerMessage()" style="font-size:20px; padding:10px; margin-top:10px;">
                 Send
@@ -347,7 +347,7 @@
     </div>
 
     <script>
-        let ws = new WebSocket("wss://buzzer.nikapadia.com:8080");
+        let ws = new WebSocket("wss://buzzer.nikapadia.com/ws");
         let mode = null;
         let lobbyCode = null;
         let playerName = null;
